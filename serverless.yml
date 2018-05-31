@@ -1,0 +1,161 @@
+service: beer-bot
+
+plugins:
+  - serverless-plugin-typescript
+  - serverless-offline
+
+custom:
+  tables:
+    teams: slackbot-brain
+    scores: slack_scores
+  nav:
+    authorization_path: authorize
+    slack_events_path: slack-event
+    slack_slash_command_path: slack-slash-command
+  slack:
+    # Verification token
+    verification_token: ""
+    # Space delimited scopes
+    client_scopes: "bot commands channels:history chat:write:bot"
+    # Client ID - quotes required
+    client_id: ""
+    # Client Secret - quotes required
+    client_secret: ""
+    # The path to redirect to after an install
+    install_redirect: https://slack.com
+
+
+# You can pin your service to only deploy with a specific Serverless version
+# Check out our docs for more details
+# frameworkVersion: "=X.X.X"
+
+provider:
+  name: aws
+  runtime: nodejs6.10
+  # region: eu-west-1
+  versionFunctions: false
+  iamRoleStatements:
+    - Effect: Allow
+      Resource: "*"
+      Action:
+        - dynamodb:DescribeTable
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+
+# you can define service wide environment variables here
+#  environment:
+#    variable1: value1
+
+# you can add packaging information here
+package:
+#  exclude:
+#    - node_modules/**/*
+  include:
+    - src/**/*
+
+functions:
+  ##  Function for installing and authorizing the app
+  install:
+    handler: src/slack/auth/handler.install
+    environment:
+     SLACK_CLIENT_ID: ${self:custom.slack.client_id}
+     SLACK_CLIENT_SECRET: ${self:custom.slack.client_secret}
+     SLACK_CLIENT_SCOPES: ${self:custom.slack.client_scopes}
+     SLACK_VERIFICATION_TOKEN: ${self:custom.slack.verification_token}
+     SLACK_AFTER_INSTALL_REDIRECT_URL: ${self:custom.slack.install_redirect}
+     TEAM_TABLE_NAME: ${self:custom.tables.teams}
+    events:
+      - http:
+          path: ${self:custom.nav.authorization_path}
+          method: get
+          integration: lambda
+          request:
+            parameters:
+              querystrings:
+                code: true
+                state: true
+          response:
+            statusCodes:
+              201:
+                pattern: ''
+              301:
+                pattern: http.*
+                headers:
+                  Location: integration.response.body.errorMessage
+                  Cache-Control: "'no-cache, no-store, must-revalidate'"
+  ##  Function for handling slack events from EventAPI
+  events:
+    handler: src/bot/handler.eventApiHandler
+    environment:
+     SLACK_CLIENT_ID: ${self:custom.slack.client_id}
+     SLACK_CLIENT_SECRET: ${self:custom.slack.client_secret}
+     SLACK_CLIENT_SCOPES: ${self:custom.slack.client_scopes}
+     SLACK_VERIFICATION_TOKEN: ${self:custom.slack.verification_token}
+     SLACK_AFTER_INSTALL_REDIRECT_URL: ${self:custom.slack.install_redirect}
+     TEAM_TABLE_NAME: ${self:custom.tables.teams}
+     SCORES_TABLE_NAME: ${self:custom.tables.scores}
+    events:
+      - http:
+          path: ${self:custom.nav.slack_events_path}
+          method: post
+          integration: lambda
+          response:
+            statusCodes:
+              200:
+                pattern: ''
+  ##  Function for handling slash commands
+  slash_commands:
+    handler: src/slack/slash/handler.onSlashCommand
+    environment:
+     SLACK_CLIENT_ID: ${self:custom.slack.client_id}
+     SLACK_CLIENT_SECRET: ${self:custom.slack.client_secret}
+     SLACK_CLIENT_SCOPES: ${self:custom.slack.client_scopes}
+     SLACK_VERIFICATION_TOKEN: ${self:custom.slack.verification_token}
+     SLACK_AFTER_INSTALL_REDIRECT_URL: ${self:custom.slack.install_redirect}
+     TEAM_TABLE_NAME: ${self:custom.tables.teams}
+     SCORES_TABLE_NAME: ${self:custom.tables.scores}
+    events:
+      - http:
+          path: ${self:custom.nav.slack_slash_command_path}
+          method: post
+          integration: lambda
+          response:
+            statusCodes:
+              200:
+                pattern: ''
+resources:
+  Resources:
+    dynamodb:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          -
+            AttributeName: team_id
+            AttributeType: S
+        KeySchema:
+          -
+            AttributeName: team_id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: ${self:custom.tables.teams}
+    scoresTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          -
+            AttributeName: teamId
+            AttributeType: S
+        KeySchema:
+          -
+            AttributeName: teamId
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: ${self:custom.tables.scores}

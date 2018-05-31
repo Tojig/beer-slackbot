@@ -1,0 +1,34 @@
+{
+  "name": "beer-bot",
+  "version": "1.0.0",
+  "description": "Give beers to yours friends",
+  "main": "handler.js",
+  "scripts": {
+    "test": "mocha -r ts-node/register src/**/*.spec.ts",
+  },
+  "author": "Ianic Almeida",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.2",
+    "@types/chai": "^4.1.3",
+    "@types/luxon": "^0.5.2",
+    "@types/mocha": "^5.2.0",
+    "@types/node": "^9.6.6",
+    "chai": "^4.1.2",
+    "mocha": "^5.1.1",
+    "serverless-offline": "^3.20.3",
+    "serverless-plugin-typescript": "^1.1.5",
+    "ts-mockito": "^2.3.0",
+    "ts-node": "^6.0.0",
+    "tslint": "^5.9.1",
+    "tslint-config-airbnb": "^5.8.0",
+    "typescript": "^2.8.3"
+  },
+  "dependencies": {
+    "@slack/client": "^4.2.0",
+    "aws-sdk": "^2.229.1",
+    "luxon": "^1.2.0",
+    "rxjs": "^6.0.0",
+    "ts-log-debug": "^4.0.3"
+  }
+}
