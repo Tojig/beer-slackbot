@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon';
-import { Constants } from '../bot/constants';
+import { Constants } from '../config/constants';
 
 export class ScoreEvent {
 
